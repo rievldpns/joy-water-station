@@ -68,8 +68,4 @@ npm start
 1. **Login**: Enter any username and password to access the system
 2. **Add Task**: Click "Add Task" button and fill in the details
 3. **Edit Task**: Click the pencil icon next to any task
-<<<<<<< HEAD
 4. **Delete Task**: Click the trash icon to remove a task
-=======
-4. **Delete Task**: Click the trash icon to remove a task
->>>>>>> 3346463596ea2abdec13948ec063a10267fc56e1

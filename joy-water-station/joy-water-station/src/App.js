@@ -15,7 +15,7 @@ export default function UserManagementSystem() {
       username: 'admin',
       email: 'admin@joywater.com',
       password: 'admin123',
-      firstName: 'John',
+      firstName: 'Sarah',
       lastName: 'Admin',
       phone: '09123456789',
       address: 'Davao City',
