@@ -1,0 +1,8 @@
+{
+  "name": "joy-water-station-root",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "start": "cd joy-water-station-main/joy-water-station/joy-water-station && npm start"
+  }
+}
