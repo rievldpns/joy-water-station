@@ -1,30 +1,42 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Eye, EyeOff, User, Lock, Mail, Phone, MapPin, Settings, Shield, LogOut, UserPlus, Edit2, Save, X, CheckCircle, AlertCircle, UserCheck, UserX, Users } from 'lucide-react';
 
 export default function UserManagementSystem() {
+  // Load initial data from localStorage
+  const loadFromStorage = () => {
+    const savedUsers = localStorage.getItem('users');
+    const savedCurrentUser = localStorage.getItem('currentUser');
+    return {
+      users: savedUsers ? JSON.parse(savedUsers) : [
+        {
+          id: 1,
+          username: 'admin',
+          email: 'admin@joywater.com',
+          password: 'admin123',
+          firstName: 'Sarah',
+          lastName: 'Admin',
+          phone: '09123456789',
+          address: 'Davao City',
+          role: 'Administrator',
+          createdAt: '2024-01-15',
+          lastLogin: '2024-08-27',
+          isBlocked: false
+        }
+      ],
+      currentUser: savedCurrentUser ? JSON.parse(savedCurrentUser) : null
+    };
+  };
+
+  const initialData = loadFromStorage();
+
   // Current view state
-  const [currentView, setCurrentView] = useState('login'); // login, register, dashboard, profile, password, users
-  
+  const [currentView, setCurrentView] = useState(initialData.currentUser ? 'dashboard' : 'login'); // login, register, dashboard, profile, password, users
+
   // User authentication state
-  const [currentUser, setCurrentUser] = useState(null);
-  
+  const [currentUser, setCurrentUser] = useState(initialData.currentUser);
+
   // Users database (in real app, this would be in backend)
-  const [users, setUsers] = useState([
-    {
-      id: 1,
-      username: 'admin',
-      email: 'admin@joywater.com',
-      password: 'admin123',
-      firstName: 'Sarah',
-      lastName: 'Admin',
-      phone: '09123456789',
-      address: 'Davao City',
-      role: 'Administrator',
-      createdAt: '2024-01-15',
-      lastLogin: '2024-08-27',
-      isBlocked: false
-    }
-  ]);
+  const [users, setUsers] = useState(initialData.users);
 
   // Form states
   const [loginForm, setLoginForm] = useState({ username: '', password: '' });
@@ -42,6 +54,19 @@ export default function UserManagementSystem() {
   const [message, setMessage] = useState({ type: '', text: '' });
   const [isEditing, setIsEditing] = useState(false);
 
+  // Persist data to localStorage
+  useEffect(() => {
+    localStorage.setItem('users', JSON.stringify(users));
+  }, [users]);
+
+  useEffect(() => {
+    if (currentUser) {
+      localStorage.setItem('currentUser', JSON.stringify(currentUser));
+    } else {
+      localStorage.removeItem('currentUser');
+    }
+  }, [currentUser]);
+
   // Helper function to show messages
   const showMessage = (type, text) => {
     setMessage({ type, text });
@@ -50,11 +75,11 @@ export default function UserManagementSystem() {
 
   // Authentication functions
   const handleLogin = () => {
-    const user = users.find(u => 
-      (u.username === loginForm.username || u.email === loginForm.username) && 
+    const user = users.find(u =>
+      (u.username === loginForm.username || u.email === loginForm.username) &&
       u.password === loginForm.password
     );
-    
+
     if (!user) {
       showMessage('error', 'Invalid username/email or password');
       return;
@@ -64,10 +89,12 @@ export default function UserManagementSystem() {
       showMessage('error', 'Your account has been blocked. Please contact administrator.');
       return;
     }
-    
-    setCurrentUser({...user, lastLogin: new Date().toISOString().split('T')[0]});
+
+    const updatedUser = {...user, lastLogin: new Date().toISOString().split('T')[0]};
+    setCurrentUser(updatedUser);
     setCurrentView('dashboard');
     setLoginForm({ username: '', password: '' });
+    localStorage.setItem('currentUser', JSON.stringify(updatedUser));
     showMessage('success', 'Login successful!');
   };
 
@@ -77,7 +104,7 @@ export default function UserManagementSystem() {
       showMessage('error', 'Please fill in all required fields');
       return;
     }
-    
+
     if (registerForm.password !== registerForm.confirmPassword) {
       showMessage('error', 'Passwords do not match');
       return;
@@ -102,20 +129,24 @@ export default function UserManagementSystem() {
       lastLogin: new Date().toISOString().split('T')[0],
       isBlocked: false
     };
-    
-    setUsers([...users, newUser]);
+
+    const updatedUsers = [...users, newUser];
+    setUsers(updatedUsers);
     setCurrentUser(newUser);
     setCurrentView('dashboard');
     setRegisterForm({
       username: '', email: '', password: '', confirmPassword: '',
       firstName: '', lastName: '', phone: '', address: ''
     });
+    localStorage.setItem('users', JSON.stringify(updatedUsers));
+    localStorage.setItem('currentUser', JSON.stringify(newUser));
     showMessage('success', 'Account created successfully!');
   };
 
   const handleLogout = () => {
     setCurrentUser(null);
     setCurrentView('login');
+    localStorage.removeItem('currentUser');
     showMessage('success', 'Logged out successfully!');
   };
 
@@ -126,12 +157,14 @@ export default function UserManagementSystem() {
   };
 
   const handleSaveProfile = () => {
-    const updatedUsers = users.map(user => 
+    const updatedUsers = users.map(user =>
       user.id === currentUser.id ? {...profileForm} : user
     );
     setUsers(updatedUsers);
     setCurrentUser({...profileForm});
     setIsEditing(false);
+    localStorage.setItem('users', JSON.stringify(updatedUsers));
+    localStorage.setItem('currentUser', JSON.stringify({...profileForm}));
     showMessage('success', 'Profile updated successfully!');
   };
 
@@ -163,29 +196,33 @@ export default function UserManagementSystem() {
     }
 
     // Update password
-    const updatedUsers = users.map(user => 
+    const updatedUsers = users.map(user =>
       user.id === currentUser.id ? {...user, password: passwordForm.newPassword} : user
     );
     setUsers(updatedUsers);
     setCurrentUser({...currentUser, password: passwordForm.newPassword});
     setPasswordForm({ currentPassword: '', newPassword: '', confirmNewPassword: '' });
+    localStorage.setItem('users', JSON.stringify(updatedUsers));
+    localStorage.setItem('currentUser', JSON.stringify({...currentUser, password: passwordForm.newPassword}));
     showMessage('success', 'Password changed successfully!');
   };
 
   // User management functions
   const handleBlockUser = (userId) => {
-    const updatedUsers = users.map(user => 
+    const updatedUsers = users.map(user =>
       user.id === userId ? {...user, isBlocked: true} : user
     );
     setUsers(updatedUsers);
+    localStorage.setItem('users', JSON.stringify(updatedUsers));
     showMessage('success', 'User blocked successfully!');
   };
 
   const handleUnblockUser = (userId) => {
-    const updatedUsers = users.map(user => 
+    const updatedUsers = users.map(user =>
       user.id === userId ? {...user, isBlocked: false} : user
     );
     setUsers(updatedUsers);
+    localStorage.setItem('users', JSON.stringify(updatedUsers));
     showMessage('success', 'User unblocked successfully!');
   };
 

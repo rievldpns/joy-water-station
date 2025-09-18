@@ -114,13 +114,19 @@ const initialItems = [
 
 export default function UserManagementSystem() {
   // current view state
-  const [currentView, setCurrentView] = useState('login'); // login, register, dashboard, profile, password, users, items, inventory
+  const [currentView, setCurrentView] = useState(() => {
+    const saved = localStorage.getItem('currentUser');
+    return saved ? 'dashboard' : 'login';
+  }); // login, register, dashboard, profile, password, users, items, inventory
 
   // sidebar state
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // user authentication state
-  const [currentUser, setCurrentUser] = useState(null);
+  const [currentUser, setCurrentUser] = useState(() => {
+    const saved = localStorage.getItem('currentUser');
+    return saved ? JSON.parse(saved) : null;
+  });
 
   // inventory and items state
   const [products, setProducts] = useState(() => {
@@ -165,23 +171,26 @@ export default function UserManagementSystem() {
     </div>
   );
 
-  // users database 
-  const [users, setUsers] = useState([
-    {
-      id: 1,
-      username: 'admin',
-      email: 'admin@joywater.com',
-      password: 'admin123',
-      firstName: 'Sarah',
-      lastName: 'Admin',
-      phone: '09123456789',
-      address: 'Davao City',
-      role: 'Administrator',
-      createdAt: '2024-01-15',
-      lastLogin: '2024-08-27',
-      isBlocked: false
-    }
-  ]);
+  // users database
+  const [users, setUsers] = useState(() => {
+    const saved = localStorage.getItem('users');
+    return saved ? JSON.parse(saved) : [
+      {
+        id: 1,
+        username: 'admin',
+        email: 'admin@joywater.com',
+        password: 'admin123',
+        firstName: 'Sarah',
+        lastName: 'Admin',
+        phone: '09123456789',
+        address: 'Davao City',
+        role: 'Administrator',
+        createdAt: '2024-01-15',
+        lastLogin: '2024-08-27',
+        isBlocked: false
+      }
+    ];
+  });
 
   // form states
   const [loginForm, setLoginForm] = useState({ username: '', password: '' });
@@ -207,11 +216,11 @@ export default function UserManagementSystem() {
 
   // authentication functions
   const handleLogin = () => {
-    const user = users.find(u => 
-      (u.username === loginForm.username || u.email === loginForm.username) && 
+    const user = users.find(u =>
+      (u.username === loginForm.username || u.email === loginForm.username) &&
       u.password === loginForm.password
     );
-    
+
     if (!user) {
       showMessage('error', 'Invalid username/email or password');
       return;
@@ -221,11 +230,18 @@ export default function UserManagementSystem() {
       showMessage('error', 'Your account has been blocked. Please contact administrator.');
       return;
     }
-    
-    setCurrentUser({...user, lastLogin: new Date().toISOString().split('T')[0]});
+
+    const updatedUser = {...user, lastLogin: new Date().toISOString().split('T')[0]};
+    setCurrentUser(updatedUser);
+    localStorage.setItem('currentUser', JSON.stringify(updatedUser));
     setCurrentView('dashboard');
     setLoginForm({ username: '', password: '' });
     showMessage('success', 'Login successful!');
+
+    // update last login in users array
+    const updatedUsers = users.map(u => u.id === user.id ? updatedUser : u);
+    setUsers(updatedUsers);
+    localStorage.setItem('users', JSON.stringify(updatedUsers));
   };
 
   const handleRegister = () => {
@@ -234,7 +250,7 @@ export default function UserManagementSystem() {
       showMessage('error', 'Please fill in all required fields');
       return;
     }
-    
+
     if (registerForm.password !== registerForm.confirmPassword) {
       showMessage('error', 'Passwords do not match');
       return;
@@ -259,9 +275,12 @@ export default function UserManagementSystem() {
       lastLogin: new Date().toISOString().split('T')[0],
       isBlocked: false
     };
-    
-    setUsers([...users, newUser]);
+
+    const updatedUsers = [...users, newUser];
+    setUsers(updatedUsers);
+    localStorage.setItem('users', JSON.stringify(updatedUsers));
     setCurrentUser(newUser);
+    localStorage.setItem('currentUser', JSON.stringify(newUser));
     setCurrentView('dashboard');
     setRegisterForm({
       username: '', email: '', password: '', confirmPassword: '',
@@ -272,6 +291,7 @@ export default function UserManagementSystem() {
 
   const handleLogout = () => {
     setCurrentUser(null);
+    localStorage.removeItem('currentUser');
     setCurrentView('login');
     showMessage('success', 'Logged out successfully!');
   };
@@ -283,11 +303,13 @@ export default function UserManagementSystem() {
   };
 
   const handleSaveProfile = () => {
-    const updatedUsers = users.map(user => 
+    const updatedUsers = users.map(user =>
       user.id === currentUser.id ? {...profileForm} : user
     );
     setUsers(updatedUsers);
+    localStorage.setItem('users', JSON.stringify(updatedUsers));
     setCurrentUser({...profileForm});
+    localStorage.setItem('currentUser', JSON.stringify({...profileForm}));
     setIsEditing(false);
     showMessage('success', 'Profile updated successfully!');
   };
@@ -320,29 +342,33 @@ export default function UserManagementSystem() {
     }
 
     // update password
-    const updatedUsers = users.map(user => 
+    const updatedUsers = users.map(user =>
       user.id === currentUser.id ? {...user, password: passwordForm.newPassword} : user
     );
     setUsers(updatedUsers);
+    localStorage.setItem('users', JSON.stringify(updatedUsers));
     setCurrentUser({...currentUser, password: passwordForm.newPassword});
+    localStorage.setItem('currentUser', JSON.stringify({...currentUser, password: passwordForm.newPassword}));
     setPasswordForm({ currentPassword: '', newPassword: '', confirmNewPassword: '' });
     showMessage('success', 'Password changed successfully!');
   };
 
   // user management functions
   const handleBlockUser = (userId) => {
-    const updatedUsers = users.map(user => 
+    const updatedUsers = users.map(user =>
       user.id === userId ? {...user, isBlocked: true} : user
     );
     setUsers(updatedUsers);
+    localStorage.setItem('users', JSON.stringify(updatedUsers));
     showMessage('success', 'User blocked successfully!');
   };
 
   const handleUnblockUser = (userId) => {
-    const updatedUsers = users.map(user => 
+    const updatedUsers = users.map(user =>
       user.id === userId ? {...user, isBlocked: false} : user
     );
     setUsers(updatedUsers);
+    localStorage.setItem('users', JSON.stringify(updatedUsers));
     showMessage('success', 'User unblocked successfully!');
   };
 

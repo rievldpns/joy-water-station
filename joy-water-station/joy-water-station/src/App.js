@@ -1,30 +1,22 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Eye, EyeOff, User, Lock, Mail, Phone, MapPin, Settings, Shield, LogOut, UserPlus, Edit2, Save, X, CheckCircle, AlertCircle, UserCheck, UserX, Users } from 'lucide-react';
+
+const API_BASE_URL = 'http://localhost:3000/api';
 
 export default function UserManagementSystem() {
   // Current view state
   const [currentView, setCurrentView] = useState('login'); // login, register, dashboard, profile, password, users
-  
+
   // User authentication state
   const [currentUser, setCurrentUser] = useState(null);
-  
-  // Users database (in real app, this would be in backend)
-  const [users, setUsers] = useState([
-    {
-      id: 1,
-      username: 'admin',
-      email: 'admin@joywater.com',
-      password: 'admin123',
-      firstName: 'Sarah',
-      lastName: 'Admin',
-      phone: '09123456789',
-      address: 'Davao City',
-      role: 'Administrator',
-      createdAt: '2024-01-15',
-      lastLogin: '2024-08-27',
-      isBlocked: false
-    }
-  ]);
+  const [token, setToken] = useState(localStorage.getItem('token') || null);
+
+  // Users state (fetched from backend)
+  const [users, setUsers] = useState([]);
+
+  // Loading and error states
+  const [loading, setLoading] = useState(false);
+  const [usersLoading, setUsersLoading] = useState(false);
 
   // Form states
   const [loginForm, setLoginForm] = useState({ username: '', password: '' });
@@ -42,6 +34,75 @@ export default function UserManagementSystem() {
   const [message, setMessage] = useState({ type: '', text: '' });
   const [isEditing, setIsEditing] = useState(false);
 
+  // API helper functions
+  const apiRequest = async (endpoint, options = {}) => {
+    const config = {
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+      ...options,
+    };
+
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || 'API request failed');
+    }
+
+    return data;
+  };
+
+  // Authentication check on mount
+  const [authLoading, setAuthLoading] = React.useState(true);
+
+  useEffect(() => {
+    if (token) {
+      setAuthLoading(true);
+      console.log('Starting token verification with token:', token);
+      // Verify token and get user profile
+      apiRequest('/users/profile')
+        .then(data => {
+          console.log('Token verification succeeded:', data);
+          setCurrentUser(data);
+          setCurrentView('dashboard');
+          setAuthLoading(false);
+        })
+        .catch((error) => {
+          console.error('Token verification failed:', error);
+          console.log('Current token:', token);
+          // Do not clear token immediately, allow user to stay logged in
+          // Optionally, you can implement retry logic here
+          setAuthLoading(false);
+        });
+    } else {
+      setAuthLoading(false);
+    }
+  }, [token]);
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <p className="text-gray-600">Verifying authentication...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Fetch users when admin views user management
+  useEffect(() => {
+    if (currentView === 'users' && currentUser?.role === 'Administrator' && token) {
+      setUsersLoading(true);
+      apiRequest('/users/all')
+        .then(data => setUsers(data))
+        .catch(error => showMessage('error', 'Failed to load users'))
+        .finally(() => setUsersLoading(false));
+    }
+  }, [currentView, currentUser, token]);
+
   // Helper function to show messages
   const showMessage = (type, text) => {
     setMessage({ type, text });
@@ -49,71 +110,73 @@ export default function UserManagementSystem() {
   };
 
   // Authentication functions
-  const handleLogin = () => {
-    const user = users.find(u => 
-      (u.username === loginForm.username || u.email === loginForm.username) && 
-      u.password === loginForm.password
-    );
-    
-    if (!user) {
-      showMessage('error', 'Invalid username/email or password');
+  const handleLogin = async () => {
+    if (!loginForm.username || !loginForm.password) {
+      showMessage('error', 'Please fill in all fields');
       return;
     }
 
-    if (user.isBlocked) {
-      showMessage('error', 'Your account has been blocked. Please contact administrator.');
-      return;
+    setLoading(true);
+    try {
+      const data = await apiRequest('/users/login', {
+        method: 'POST',
+        body: JSON.stringify({
+          username: loginForm.username,
+          password: loginForm.password
+        })
+      });
+
+      localStorage.setItem('token', data.token);
+      setToken(data.token);
+      setCurrentUser(data.user);
+      setCurrentView('dashboard');
+      setLoginForm({ username: '', password: '' });
+      showMessage('success', 'Login successful!');
+    } catch (error) {
+      showMessage('error', error.message);
+    } finally {
+      setLoading(false);
     }
-    
-    setCurrentUser({...user, lastLogin: new Date().toISOString().split('T')[0]});
-    setCurrentView('dashboard');
-    setLoginForm({ username: '', password: '' });
-    showMessage('success', 'Login successful!');
   };
 
-  const handleRegister = () => {
+  const handleRegister = async () => {
     // Validation
     if (!registerForm.username || !registerForm.email || !registerForm.password) {
       showMessage('error', 'Please fill in all required fields');
       return;
     }
-    
+
     if (registerForm.password !== registerForm.confirmPassword) {
       showMessage('error', 'Passwords do not match');
       return;
     }
 
-    if (users.find(u => u.username === registerForm.username)) {
-      showMessage('error', 'Username already exists');
-      return;
-    }
+    setLoading(true);
+    try {
+      const data = await apiRequest('/users/register', {
+        method: 'POST',
+        body: JSON.stringify(registerForm)
+      });
 
-    if (users.find(u => u.email === registerForm.email)) {
-      showMessage('error', 'Email already exists');
-      return;
+      localStorage.setItem('token', data.token);
+      setToken(data.token);
+      setCurrentUser(data.user);
+      setCurrentView('dashboard');
+      setRegisterForm({
+        username: '', email: '', password: '', confirmPassword: '',
+        firstName: '', lastName: '', phone: '', address: ''
+      });
+      showMessage('success', 'Account created successfully!');
+    } catch (error) {
+      showMessage('error', error.message);
+    } finally {
+      setLoading(false);
     }
-
-    // Create new user
-    const newUser = {
-      id: users.length + 1,
-      ...registerForm,
-      role: 'User',
-      createdAt: new Date().toISOString().split('T')[0],
-      lastLogin: new Date().toISOString().split('T')[0],
-      isBlocked: false
-    };
-    
-    setUsers([...users, newUser]);
-    setCurrentUser(newUser);
-    setCurrentView('dashboard');
-    setRegisterForm({
-      username: '', email: '', password: '', confirmPassword: '',
-      firstName: '', lastName: '', phone: '', address: ''
-    });
-    showMessage('success', 'Account created successfully!');
   };
 
   const handleLogout = () => {
+    localStorage.removeItem('token');
+    setToken(null);
     setCurrentUser(null);
     setCurrentView('login');
     showMessage('success', 'Logged out successfully!');
@@ -125,14 +188,22 @@ export default function UserManagementSystem() {
     setIsEditing(true);
   };
 
-  const handleSaveProfile = () => {
-    const updatedUsers = users.map(user => 
-      user.id === currentUser.id ? {...profileForm} : user
-    );
-    setUsers(updatedUsers);
-    setCurrentUser({...profileForm});
-    setIsEditing(false);
-    showMessage('success', 'Profile updated successfully!');
+  const handleSaveProfile = async () => {
+    setLoading(true);
+    try {
+      const data = await apiRequest('/users/profile', {
+        method: 'PUT',
+        body: JSON.stringify(profileForm)
+      });
+
+      setCurrentUser(data);
+      setIsEditing(false);
+      showMessage('success', 'Profile updated successfully!');
+    } catch (error) {
+      showMessage('error', error.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleCancelEdit = () => {
@@ -141,14 +212,9 @@ export default function UserManagementSystem() {
   };
 
   // Password management
-  const handleChangePassword = () => {
+  const handleChangePassword = async () => {
     if (!passwordForm.currentPassword || !passwordForm.newPassword || !passwordForm.confirmNewPassword) {
       showMessage('error', 'Please fill in all fields');
-      return;
-    }
-
-    if (currentUser.password !== passwordForm.currentPassword) {
-      showMessage('error', 'Current password is incorrect');
       return;
     }
 
@@ -162,31 +228,60 @@ export default function UserManagementSystem() {
       return;
     }
 
-    // Update password
-    const updatedUsers = users.map(user => 
-      user.id === currentUser.id ? {...user, password: passwordForm.newPassword} : user
-    );
-    setUsers(updatedUsers);
-    setCurrentUser({...currentUser, password: passwordForm.newPassword});
-    setPasswordForm({ currentPassword: '', newPassword: '', confirmNewPassword: '' });
-    showMessage('success', 'Password changed successfully!');
+    setLoading(true);
+    try {
+      await apiRequest('/users/change-password', {
+        method: 'PUT',
+        body: JSON.stringify({
+          currentPassword: passwordForm.currentPassword,
+          newPassword: passwordForm.newPassword
+        })
+      });
+
+      setPasswordForm({ currentPassword: '', newPassword: '', confirmNewPassword: '' });
+      showMessage('success', 'Password changed successfully!');
+    } catch (error) {
+      showMessage('error', error.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   // User management functions
-  const handleBlockUser = (userId) => {
-    const updatedUsers = users.map(user => 
-      user.id === userId ? {...user, isBlocked: true} : user
-    );
-    setUsers(updatedUsers);
-    showMessage('success', 'User blocked successfully!');
+  const handleBlockUser = async (userId) => {
+    setLoading(true);
+    try {
+      await apiRequest(`/users/block/${userId}`, {
+        method: 'PUT'
+      });
+
+      // Refresh users list
+      const data = await apiRequest('/users/all');
+      setUsers(data);
+      showMessage('success', 'User blocked successfully!');
+    } catch (error) {
+      showMessage('error', error.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleUnblockUser = (userId) => {
-    const updatedUsers = users.map(user => 
-      user.id === userId ? {...user, isBlocked: false} : user
-    );
-    setUsers(updatedUsers);
-    showMessage('success', 'User unblocked successfully!');
+  const handleUnblockUser = async (userId) => {
+    setLoading(true);
+    try {
+      await apiRequest(`/users/unblock/${userId}`, {
+        method: 'PUT'
+      });
+
+      // Refresh users list
+      const data = await apiRequest('/users/all');
+      setUsers(data);
+      showMessage('success', 'User unblocked successfully!');
+    } catch (error) {
+      showMessage('error', error.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Toggle password visibility

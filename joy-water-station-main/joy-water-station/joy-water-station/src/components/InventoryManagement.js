@@ -41,11 +41,22 @@ const InventoryManagement = ({ products, setProducts, setCurrentView }) => {
     return 0;
   });
 
+  const getStockStatus = (current, min, max) => {
+    if (current === 0) return { status: 'Out of Stock', color: 'red' };
+    if (current <= min) return { status: 'Low Stock', color: 'yellow' };
+    return { status: 'Sufficient', color: 'green' };
+  };
+
   // summary statistics
   const totalItems = products.length;
   const categoriesCount = categories.reduce((acc, cat) => {
     if (cat === 'All') return acc;
     acc[cat] = products.filter(item => item.category === cat).length;
+    return acc;
+  }, {});
+  const stockStatusCounts = products.reduce((acc, item) => {
+    const status = getStockStatus(item.currentStock, item.minStock, item.maxStock).status;
+    acc[status] = (acc[status] || 0) + 1;
     return acc;
   }, {});
 
@@ -114,18 +125,12 @@ const InventoryManagement = ({ products, setProducts, setCurrentView }) => {
     });
   };
 
-  const getStockStatus = (current, min, max) => {
-    if (current === 0) return { status: 'Out of Stock', color: 'red' };
-    if (current <= min) return { status: 'Low Stock', color: 'yellow' };
-    return { status: 'Sufficient', color: 'green' };
-  };
-
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <h1 className="text-2xl font-semibold mb-6">Inventory Management</h1>
 
       {/* summary dashboard */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <div className="bg-white p-4 rounded shadow">
           <p className="text-sm text-gray-600">Total Items</p>
           <p className="text-xl font-bold">{totalItems}</p>
@@ -133,6 +138,12 @@ const InventoryManagement = ({ products, setProducts, setCurrentView }) => {
         {Object.entries(categoriesCount).map(([cat, count]) => (
           <div key={cat} className="bg-white p-4 rounded shadow">
             <p className="text-sm text-gray-600">{cat}</p>
+            <p className="text-xl font-bold">{count}</p>
+          </div>
+        ))}
+        {Object.entries(stockStatusCounts).map(([status, count]) => (
+          <div key={status} className="bg-white p-4 rounded shadow">
+            <p className="text-sm text-gray-600">{status}</p>
             <p className="text-xl font-bold">{count}</p>
           </div>
         ))}
@@ -178,6 +189,7 @@ const InventoryManagement = ({ products, setProducts, setCurrentView }) => {
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Unit of Measure</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Unit Price</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200">
@@ -237,6 +249,22 @@ const InventoryManagement = ({ products, setProducts, setCurrentView }) => {
                   <div className="flex items-center gap-2">
                     <div className="w-3 h-3 rounded-full bg-gray-400"></div>
                     <span className="text-sm">New</span>
+                  </div>
+                </td>
+                <td className="px-6 py-2">
+                  <div className="flex gap-2">
+                    <button
+                      onClick={saveEdit}
+                      className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-sm"
+                    >
+                      Save
+                    </button>
+                    <button
+                      onClick={cancelEdit}
+                      className="bg-gray-500 hover:bg-gray-600 text-white px-3 py-1 rounded text-sm"
+                    >
+                      Cancel
+                    </button>
                   </div>
                 </td>
               </tr>
@@ -302,6 +330,22 @@ const InventoryManagement = ({ products, setProducts, setCurrentView }) => {
                       );
                     })()}
                     </td>
+                    <td className="px-6 py-2">
+                      <div className="flex gap-2">
+                        <button
+                          onClick={saveEdit}
+                          className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-sm"
+                        >
+                          Save
+                        </button>
+                        <button
+                          onClick={cancelEdit}
+                          className="bg-gray-500 hover:bg-gray-600 text-white px-3 py-1 rounded text-sm"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </td>
                   </>
                 ) : (
                   <>
@@ -321,13 +365,29 @@ const InventoryManagement = ({ products, setProducts, setCurrentView }) => {
                       );
                     })()}
                     </td>
+                    <td className="px-6 py-2">
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => startEdit(item)}
+                          className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => deleteItem(item.id)}
+                          className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-sm"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </td>
                   </>
                 )}
               </tr>
             ))}
             {sortedItems.length === 0 && !newItem && (
               <tr>
-                <td colSpan="6" className="text-center py-4 text-gray-500">
+                <td colSpan="7" className="text-center py-4 text-gray-500">
                   No items found.
                 </td>
               </tr>
