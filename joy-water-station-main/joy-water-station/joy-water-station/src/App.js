@@ -3,6 +3,7 @@ import { Eye, EyeOff, User, Lock, Shield, LogOut, UserPlus, Edit2, Save, X, Chec
 import ItemManagement from './components/ItemManagement.js';
 import InventoryManagement from './components/InventoryManagement.js';
 import UserManagement from './components/UserManagement.js';
+import CustomerManagement from './components/CustomerManagement.js';
 import Sidebar from './components/Sidebar.js';
 import Header from './components/Header.js';
 
@@ -138,16 +139,26 @@ export default function UserManagementSystem() {
     return saved ? JSON.parse(saved) : initialItems;
   });
 
+  // customers state
+  const [customers, setCustomers] = useState(() => {
+    const saved = localStorage.getItem('customers');
+    return saved ? JSON.parse(saved) : [];
+  });
+
   // load data from localStorage on mount
   useEffect(() => {
     const savedProducts = localStorage.getItem('inventoryProducts');
     const savedItems = localStorage.getItem('inventoryItems');
+    const savedCustomers = localStorage.getItem('customers');
 
     if (savedProducts) {
       setProducts(JSON.parse(savedProducts));
     }
     if (savedItems) {
       setItems(JSON.parse(savedItems));
+    }
+    if (savedCustomers) {
+      setCustomers(JSON.parse(savedCustomers));
     }
   }, []);
 
@@ -159,6 +170,10 @@ export default function UserManagementSystem() {
   useEffect(() => {
     localStorage.setItem('inventoryItems', JSON.stringify(items));
   }, [items]);
+
+  useEffect(() => {
+    localStorage.setItem('customers', JSON.stringify(customers));
+  }, [customers]);
 
   // layout component for authenticated views
   const Layout = ({ title, children }) => (
@@ -971,7 +986,7 @@ if (currentView === 'dashboard') {
   );
 }
 
-  // user management view
+  // item management view
   if (currentView === 'items') {
     return (
       <Layout title="Item Management">
@@ -1318,6 +1333,16 @@ if (currentView === 'inventory') {
     <Layout title="Inventory Management">
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <InventoryManagement products={products} setProducts={setProducts} />
+      </main>
+    </Layout>
+  );
+}
+
+if (currentView === 'customers') {
+  return (
+    <Layout title="Customer Management">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <CustomerManagement customers={customers} setCustomers={setCustomers} />
       </main>
     </Layout>
   );

@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { 
   X, 
   Home, 
-  Users, 
+  Users,
+  BookUser,
   Package, 
   Warehouse, 
   BarChart3, 
@@ -15,7 +16,7 @@ import {
   Bell,
   User,
   Shield,
-  Activity
+  Activity,
 } from 'lucide-react';
 
 const Sidebar = ({ sidebarOpen, setSidebarOpen, currentView, setCurrentView, currentUser, handleLogout }) => {
@@ -50,6 +51,13 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen, currentView, setCurrentView, cur
       color: 'indigo',
       adminOnly: true,
       description: 'Manage system users'
+    },
+    {
+      id: 'customers',
+      label: 'Customer Management',
+      icon: BookUser,
+      color: 'pink',
+      description: 'Manage customer records'
     },
     {
       id: 'items',
@@ -134,6 +142,12 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen, currentView, setCurrentView, cur
         text: isActive ? 'text-teal-700' : 'text-gray-700 hover:text-teal-600',
         border: 'border-teal-500',
         icon: isActive ? 'text-teal-600' : 'text-gray-500'
+      },
+      pink: {
+        bg: isActive ? 'bg-pink-100' : 'hover:bg-pink-50',
+        text: isActive ? 'text-pink-700' : 'text-gray-700 hover:text-pink-600',
+        border: 'border-pink-500',
+        icon: isActive ? 'text-pink-600' : 'text-gray-500'
       }
     };
     return colors[color] || colors.blue;
