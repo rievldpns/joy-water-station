@@ -11,12 +11,14 @@ const initialCustomers = [
     type: 'Regular',
     lastOrder: '2025-10-01',
     totalOrders: 15,
-    status: 'Active'
+    status: 'Active',
+    hidden: false
   },
 ];
 
 const customerTypes = ['All', 'Regular', 'Wholesale', 'Corporate'];
-const statusOptions = ['All', 'Active', 'Inactive'];
+const statusOptions = ['All', 'Active', 'Inactive', 'Hidden'];
+const viewOptions = ['Active', 'Hidden', 'All'];
 
 export default function CustomerManagement({ customers, setCustomers }) {
   // Initialize customers if empty
@@ -39,7 +41,8 @@ export default function CustomerManagement({ customers, setCustomers }) {
     email: '',
     address: '',
     type: 'Regular',
-    status: 'Active'
+    status: 'Active',
+    hidden: false
   });
 
   // Filtered and sorted customers
@@ -49,7 +52,10 @@ export default function CustomerManagement({ customers, setCustomers }) {
       customer.phone.includes(searchTerm) ||
       customer.email.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesType = filterType === 'All' || customer.type === filterType;
-    const matchesStatus = filterStatus === 'All' || customer.status === filterStatus;
+    const matchesStatus = filterStatus === 'All' || 
+      (filterStatus === 'Hidden' ? customer.hidden : 
+       filterStatus === 'Active' ? (!customer.hidden && customer.status === 'Active') :
+       customer.status === filterStatus && !customer.hidden);
     return matchesSearch && matchesType && matchesStatus;
   });
 
@@ -99,7 +105,8 @@ export default function CustomerManagement({ customers, setCustomers }) {
       email: '',
       address: '',
       type: 'Regular',
-      status: 'Active'
+      status: 'Active',
+      hidden: false
     });
     setNewCustomer(null);
   };
@@ -127,10 +134,18 @@ export default function CustomerManagement({ customers, setCustomers }) {
     cancelEdit();
   };
 
-  const deleteCustomer = (id) => {
-    if (window.confirm('Are you sure you want to delete this customer?')) {
-      setCustomers(customers.filter(customer => customer.id !== id));
+  const hideCustomer = (id) => {
+    if (window.confirm('Are you sure you want to archive this customer? They will be moved to the Hidden list.')) {
+      setCustomers(customers.map(customer =>
+        customer.id === id ? { ...customer, hidden: true } : customer
+      ));
     }
+  };
+
+  const restoreCustomer = (id) => {
+    setCustomers(customers.map(customer =>
+      customer.id === id ? { ...customer, hidden: false } : customer
+    ));
   };
 
   const addNewCustomer = () => {
@@ -277,6 +292,83 @@ export default function CustomerManagement({ customers, setCustomers }) {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
+              {newCustomer && (
+                <tr>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <input
+                      type="text"
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      className="w-full px-2 py-1 border border-gray-300 rounded"
+                      placeholder="Customer Name"
+                    />
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <input
+                      type="text"
+                      value={formData.phone}
+                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                      className="w-full px-2 py-1 border border-gray-300 rounded"
+                      placeholder="Phone Number"
+                    />
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <input
+                      type="email"
+                      value={formData.email}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      className="w-full px-2 py-1 border border-gray-300 rounded"
+                      placeholder="Email Address"
+                    />
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <select
+                      value={formData.type}
+                      onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                      className="w-full px-2 py-1 border border-gray-300 rounded"
+                    >
+                      {customerTypes.slice(1).map(type => (
+                        <option key={type} value={type}>{type}</option>
+                      ))}
+                    </select>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-500">-</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-500">0</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <select
+                      value={formData.status}
+                      onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                      className="w-full px-2 py-1 border border-gray-300 rounded"
+                    >
+                      {statusOptions.slice(1, -1).map(status => (
+                        <option key={status} value={status}>{status}</option>
+                      ))}
+                    </select>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={saveEdit}
+                        className="text-green-600 hover:text-green-900"
+                        title="Save Customer"
+                      >
+                        <Save className="w-5 h-5" />
+                      </button>
+                      <button
+                        onClick={cancelEdit}
+                        className="text-gray-600 hover:text-gray-900"
+                        title="Cancel"
+                      >
+                        <X className="w-5 h-5" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              )}
               {sortedCustomers.map(customer => (
                 <tr key={customer.id}>
                   <td className="px-6 py-4 whitespace-nowrap">
@@ -383,12 +475,23 @@ export default function CustomerManagement({ customers, setCustomers }) {
                         >
                           <Edit2 className="w-5 h-5" />
                         </button>
-                        <button
-                          onClick={() => deleteCustomer(customer.id)}
-                          className="text-red-600 hover:text-red-900"
-                        >
-                          <Trash2 className="w-5 h-5" />
-                        </button>
+                        {!customer.hidden ? (
+                          <button
+                            onClick={() => hideCustomer(customer.id)}
+                            className="text-red-600 hover:text-red-900"
+                            title="Archive Customer"
+                          >
+                            <Trash2 className="w-5 h-5" />
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => restoreCustomer(customer.id)}
+                            className="text-green-600 hover:text-green-900"
+                            title="Restore Customer"
+                          >
+                            <UserSquare className="w-5 h-5" />
+                          </button>
+                        )}
                       </div>
                     )}
                   </td>
