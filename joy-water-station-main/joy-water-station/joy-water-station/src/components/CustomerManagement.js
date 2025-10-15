@@ -30,7 +30,7 @@ export default function CustomerManagement({ customers, setCustomers }) {
   
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('All');
-  const [filterStatus, setFilterStatus] = useState('All');
+  const [filterStatus, setFilterStatus] = useState('Active');
   const [sortField, setSortField] = useState(null);
   const [sortDirection, setSortDirection] = useState('asc');
   const [editingCustomerId, setEditingCustomerId] = useState(null);
@@ -136,10 +136,15 @@ export default function CustomerManagement({ customers, setCustomers }) {
     cancelEdit();
   };
 
-  const hideCustomer = (id) => {
-    if (window.confirm('Are you sure you want to archive this customer? They will be moved to the Hidden list.')) {
+  const initiateHideCustomer = (id) => {
+    setCustomerToArchive(id);
+    setShowArchiveModal(true);
+  };
+
+  const confirmHideCustomer = () => {
+    if (customerToArchive) {
       setCustomers(customers.map(customer =>
-        customer.id === id ? { ...customer, hidden: true } : customer
+        customer.id === customerToArchive ? { ...customer, hidden: true } : customer
       ));
     }
     setShowArchiveModal(false);
@@ -514,7 +519,7 @@ export default function CustomerManagement({ customers, setCustomers }) {
                         </button>
                         {!customer.hidden ? (
                           <button
-                            onClick={() => hideCustomer(customer.id)}
+                            onClick={() => initiateHideCustomer(customer.id)}
                             className="text-red-600 hover:text-red-900"
                             title="Archive Customer"
                           >
