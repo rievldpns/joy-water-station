@@ -934,7 +934,7 @@ if (currentView === 'dashboard') {
                 </div>
               </div>
 
-              <div className="bg-white border rounded-lg p-6 cursor-pointer hover:shadow-lg hover:border-purple-300 transition-all duration-200 group" onClick={() => alert('Sales Management module')}>
+              <div className="bg-white border rounded-lg p-6 cursor-pointer hover:shadow-lg hover:border-purple-300 transition-all duration-200 group" onClick={() => setCurrentView('sales')}>
                 <div className="flex items-center justify-between mb-4">
                   <div className="bg-purple-100 p-3 rounded-full group-hover:bg-purple-200 transition-colors">
                     <TrendingUp className="w-8 h-8 text-purple-600" />
