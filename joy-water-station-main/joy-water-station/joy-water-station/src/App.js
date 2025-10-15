@@ -745,7 +745,7 @@ if (currentView === 'dashboard') {
             </button>
 
             <button
-              onClick={() => alert('Delivery Monitoring')}
+              onClick={() => setCurrentView('delivery-monitoring')}
               className="w-full flex items-center px-4 py-3 text-left text-gray-700 hover:bg-gray-100 rounded-lg transition-colors duration-200"
             >
               <FileText className="w-5 h-5 mr-3" />
@@ -950,7 +950,7 @@ if (currentView === 'dashboard') {
                 </div>
               </div>
 
-              <div className="bg-white border rounded-lg p-6 cursor-pointer hover:shadow-lg hover:border-red-300 transition-all duration-200 group relative" onClick={() => alert('Delivery Monitoring module')}>
+              <div className="bg-white border rounded-lg p-6 cursor-pointer hover:shadow-lg hover:border-red-300 transition-all duration-200 group relative" onClick={() => setCurrentView('delivery-monitoring')}>
                 <div className="flex items-center justify-between mb-4">
                   <div className="bg-red-100 p-3 rounded-full group-hover:bg-red-200 transition-colors">
                     <Truck className="w-8 h-8 text-red-600" />
@@ -1389,7 +1389,7 @@ if (currentView === 'sales') {
   );
 }
 
-/* delivery monitoring view
+// delivery monitoring view
 if (currentView === 'delivery-monitoring') {
   return (
     <Layout title="Delivery Monitoring">
@@ -1398,5 +1398,5 @@ if (currentView === 'delivery-monitoring') {
       </main>
     </Layout>
   );
-}*/
+}
 }
