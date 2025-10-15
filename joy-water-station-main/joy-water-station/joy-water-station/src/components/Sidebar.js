@@ -21,7 +21,7 @@ import {
 
 const Sidebar = ({ sidebarOpen, setSidebarOpen, currentView, setCurrentView, currentUser, handleLogout }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [notifications, setNotifications] = useState(3);
+  const [notifications, setNotifications] = useState(null);
   const [hoveredItem, setHoveredItem] = useState(null);
 
   // animation states
@@ -81,8 +81,8 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen, currentView, setCurrentView, cur
       description: 'Revenue and performance'
     },
     {
-      id: 'delivery',
-      label: 'Delivery',
+      id: 'delivery-monitoring',
+      label: 'Delivery Monitoring',
       icon: Truck,
       color: 'orange',
       badge: notifications,
