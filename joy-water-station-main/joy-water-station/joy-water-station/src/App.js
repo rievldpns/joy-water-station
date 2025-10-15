@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Eye, EyeOff, User, Lock, Shield, LogOut, UserPlus, Edit2, Save, X, CheckCircle, AlertCircle, Users, Package, Warehouse, TrendingUp, Truck, Menu, Home, BarChart3, FileText, Settings, UserX, UserCheck } from 'lucide-react';
+import { Eye, EyeOff, User, Lock, Shield, LogOut, UserPlus, Edit2, Save, X, CheckCircle, AlertCircle, Users, Package, Warehouse, TrendingUp, Truck, Menu, Home, BarChart3, FileText, Settings, BookUser, UserX, UserCheck } from 'lucide-react';
 import ItemManagement from './components/ItemManagement.js';
 import InventoryManagement from './components/InventoryManagement.js';
 import UserManagement from './components/UserManagement.js';
@@ -689,6 +689,18 @@ if (currentView === 'dashboard') {
             )}
 
             <button
+              onClick={() => setCurrentView('customers')}
+              className={`w-full flex items-center px-4 py-3 text-left rounded-lg transition-colors duration-200 ${
+                currentView === 'customers'
+                  ? 'bg-green-100 text-green-700 border-r-4 border-green-500'
+                  : 'text-gray-700 hover:bg-gray-100'
+              }`}
+            >
+              <BookUser className="w-5 h-5 mr-3" />
+              <span className="font-medium">Customer Management</span>
+            </button>
+
+            <button
               onClick={() => setCurrentView('items')}
               className={`w-full flex items-center px-4 py-3 text-left rounded-lg transition-colors duration-200 ${
                 currentView === 'items'
@@ -1338,6 +1350,7 @@ if (currentView === 'inventory') {
   );
 }
 
+// customer management view
 if (currentView === 'customers') {
   return (
     <Layout title="Customer Management">
