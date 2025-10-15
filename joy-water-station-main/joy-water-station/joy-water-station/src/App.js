@@ -153,11 +153,19 @@ export default function UserManagementSystem() {
     return saved ? JSON.parse(saved) : [];
   });
 
+  // deliveries state
+  const [deliveries, setDeliveries] = useState(() => {
+    const saved = localStorage.getItem('deliveries');
+    return saved ? JSON.parse(saved) : [];
+  });
+
   // load data from localStorage on mount
   useEffect(() => {
     const savedProducts = localStorage.getItem('inventoryProducts');
     const savedItems = localStorage.getItem('inventoryItems');
     const savedCustomers = localStorage.getItem('customers');
+    const savedSales = localStorage.getItem('sales');
+    const savedDeliveries = localStorage.getItem('deliveries');
 
     if (savedProducts) {
       setProducts(JSON.parse(savedProducts));
@@ -167,6 +175,12 @@ export default function UserManagementSystem() {
     }
     if (savedCustomers) {
       setCustomers(JSON.parse(savedCustomers));
+    }
+    if (savedSales) {
+      setSales(JSON.parse(savedSales));
+    }
+    if (savedDeliveries) {
+      setDeliveries(JSON.parse(savedDeliveries));
     }
   }, []);
 
@@ -182,6 +196,14 @@ export default function UserManagementSystem() {
   useEffect(() => {
     localStorage.setItem('customers', JSON.stringify(customers));
   }, [customers]);
+
+  useEffect(() => {
+    localStorage.setItem('sales', JSON.stringify(sales));
+  }, [sales]);
+
+  useEffect(() => {
+    localStorage.setItem('deliveries', JSON.stringify(deliveries));
+  }, [deliveries]);
 
   // layout component for authenticated views
   const Layout = ({ title, children }) => (
@@ -1378,12 +1400,7 @@ if (currentView === 'sales') {
   return (
     <Layout title="Sales Management">
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <SalesManagement
-          sales={sales} setSales={setSales}
-          customers={customers}
-          items={items} setItems={setItems}
-        />
-
+        <SalesManagement sales={sales} setSales={setSales} customers={customers} items={items} setItems={setItems} />
       </main>
     </Layout>
   );
@@ -1394,7 +1411,7 @@ if (currentView === 'delivery-monitoring') {
   return (
     <Layout title="Delivery Monitoring">
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <DeliveryMonitoring />
+        <DeliveryMonitoring sales={sales} customers={customers} items={items} />
       </main>
     </Layout>
   );
