@@ -35,6 +35,8 @@ export default function CustomerManagement({ customers, setCustomers }) {
   const [sortDirection, setSortDirection] = useState('asc');
   const [editingCustomerId, setEditingCustomerId] = useState(null);
   const [newCustomer, setNewCustomer] = useState(null);
+  const [showArchiveModal, setShowArchiveModal] = useState(false);
+  const [customerToArchive, setCustomerToArchive] = useState(null);
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
