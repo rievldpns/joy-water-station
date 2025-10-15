@@ -5,6 +5,7 @@ import InventoryManagement from './components/InventoryManagement.js';
 import UserManagement from './components/UserManagement.js';
 import CustomerManagement from './components/CustomerManagement.js';
 import SalesManagement from './components/SalesManagement.js';
+import DeliveryMonitoring from './components/DeliveryMonitoring.js';
 import Sidebar from './components/Sidebar.js';
 import Header from './components/Header.js';
 
@@ -1377,9 +1378,25 @@ if (currentView === 'sales') {
   return (
     <Layout title="Sales Management">
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <SalesManagement sales={sales} setSales={setSales} />
+        <SalesManagement
+          sales={sales} setSales={setSales}
+          customers={customers}
+          items={items} setItems={setItems}
+        />
+
       </main>
     </Layout>
   );
 }
+
+/* delivery monitoring view
+if (currentView === 'delivery-monitoring') {
+  return (
+    <Layout title="Delivery Monitoring">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <DeliveryMonitoring />
+      </main>
+    </Layout>
+  );
+}*/
 }
