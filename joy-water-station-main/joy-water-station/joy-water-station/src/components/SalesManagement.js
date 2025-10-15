@@ -826,18 +826,61 @@ export default function SalesManagement({ sales, setSales, customers = [], items
                 <label className="block text-sm font-medium text-gray-700 mb-2">Items *</label>
                 <div className="space-y-2">
                   {formData.items.map((it, idx) => (
-                    <div key={idx} className="flex gap-2 items-center">
-                      <select value={it.itemId} onChange={(e) => updateItemRow(idx, 'itemId', e.target.value)} className="flex-1 px-3 py-2 border rounded">
-                        <option value="">Select Item</option>
-                        {items.map(i => (<option key={i.id} value={i.id}>{i.name} — {i.uom ? i.uom : ''}</option>))}
-                      </select>
+                    <div key={idx} className="grid grid-cols-[1fr_80px_110px_auto] gap-2 items-start md:items-center">
+                      {/* Item select (flexible) */}
+                      <div className="flex flex-col">
+                        <label className="text-xs text-gray-500 mb-1">Item</label>
+                        <select
+                          value={it.itemId}
+                          onChange={(e) => updateItemRow(idx, 'itemId', e.target.value)}
+                          className="w-full px-3 py-2 border rounded bg-white"
+                        >
+                          <option value="">Select Item</option>
+                          {items.map(i => (
+                            <option key={i.id} value={i.id}>
+                              {i.name}{i.uom ? ` — ${i.uom}` : ''}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
 
-                      <input type="number" min="1" value={it.quantity} onChange={(e) => updateItemRow(idx, 'quantity', parseInt(e.target.value || 1))} placeholder="Qty" className="w-20 px-3 py-2 border rounded" />
-                      <input type="number" min="0" step="0.01" value={it.price} onChange={(e) => updateItemRow(idx, 'price', parseFloat(e.target.value || 0))} placeholder="Price" className="w-28 px-3 py-2 border rounded" />
+                      {/* Quantity (fixed width) */}
+                      <div className="flex flex-col">
+                        <label className="text-xs text-gray-500 mb-1">Qty</label>
+                        <input
+                          type="number"
+                          min="1"
+                          value={it.quantity}
+                          onChange={(e) => updateItemRow(idx, 'quantity', parseInt(e.target.value || 1))}
+                          className="w-full px-3 py-2 border rounded text-center"
+                        />
+                      </div>
 
-                      {formData.items.length > 1 && (
-                        <button onClick={() => removeItemRow(idx)} className="px-2 py-2 text-red-600 rounded hover:bg-red-50"><X className="w-4 h-4" /></button>
-                      )}
+                      {/* Price (fixed width) */}
+                      <div className="flex flex-col">
+                        <label className="text-xs text-gray-500 mb-1">Price</label>
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={it.price}
+                          onChange={(e) => updateItemRow(idx, 'price', parseFloat(e.target.value || 0))}
+                          className="w-full px-3 py-2 border rounded text-right"
+                        />
+                      </div>
+
+                      {/* Remove button */}
+                      <div className="flex items-center">
+                        {formData.items.length > 1 && (
+                          <button
+                            onClick={() => removeItemRow(idx)}
+                            className="px-2 py-2 text-red-600 rounded hover:bg-red-50"
+                            title="Remove item"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
                     </div>
                   ))}
 
