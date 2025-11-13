@@ -1,0 +1,857 @@
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Edit2, Save, X, UserX, UserCheck, Trash2, Search, ChevronDown, ChevronUp, Key, RefreshCw } from 'lucide-react';
+
+const roles = ['All', 'User', 'Administrator'];
+
+function UserManagement({ currentUser, setCurrentView }) {
+  const [users, setUsers] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterRole, setFilterRole] = useState('All');
+  const [sortField, setSortField] = useState('createdAt');
+  const [sortDirection, setSortDirection] = useState('desc');
+  const [editingUserId, setEditingUserId] = useState(null);
+  const [changingPasswordUserId, setChangingPasswordUserId] = useState(null);
+  const [newPassword, setNewPassword] = useState('');
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [successMessage, setSuccessMessage] = useState(null);
+  const [debugInfo, setDebugInfo] = useState('');
+  const [formData, setFormData] = useState({
+    username: '',
+    email: '',
+    firstName: '',
+    lastName: '',
+    phone: '',
+    address: '',
+    role: 'User',
+    isBlocked: false,
+    createdAt: '',
+    lastLogin: '',
+    loginCount: 0,
+  });
+
+  const isUnmountedRef = useRef(false);
+
+  const fetchUsers = useCallback(async () => {
+    if (isUnmountedRef.current) return;
+
+    setLoading(true);
+    setError(null);
+    setDebugInfo('Fetching users...');
+    
+    try {
+      const token = localStorage.getItem('token');
+      
+      if (!token) {
+        setDebugInfo('❌ No authentication token found');
+        setError('Please login first');
+        setLoading(false);
+        return;
+      }
+      
+      setDebugInfo('✓ Token found, making API request...');
+      
+      const response = await fetch('http://localhost:5000/api/users/all', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      setDebugInfo(`✓ Response received: Status ${response.status}`);
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        if (!isUnmountedRef.current) {
+          setError(errorData.message || 'Failed to fetch users');
+          setDebugInfo(`❌ Error: ${errorData.message}`);
+        }
+        console.error('Fetch users error:', errorData);
+      } else {
+        const data = await response.json();
+        console.log('✓ Raw API Response:', data);
+        console.log('✓ Response type:', typeof data);
+        console.log('✓ Is Array:', Array.isArray(data));
+        console.log('✓ Data length:', data?.length);
+        
+        if (!isUnmountedRef.current) {
+          // Handle different response formats
+          let usersArray = data;
+          
+          // If response is an object with a users property
+          if (data && typeof data === 'object' && !Array.isArray(data)) {
+            if (data.users && Array.isArray(data.users)) {
+              usersArray = data.users;
+              console.log('✓ Extracted users from data.users');
+            } else if (data.data && Array.isArray(data.data)) {
+              usersArray = data.data;
+              console.log('✓ Extracted users from data.data');
+            }
+          }
+          
+          // Ensure we have an array
+          if (!Array.isArray(usersArray)) {
+            console.error('❌ Response is not an array:', usersArray);
+            setError('Invalid response format from server');
+            setDebugInfo('❌ Server returned invalid data format (not an array)');
+            return;
+          }
+          
+          console.log('✓ Users array:', usersArray);
+          console.log('✓ Setting', usersArray.length, 'users');
+          console.log('✓ First user sample:', usersArray[0]);
+          
+          setUsers(usersArray);
+          console.log('✓ setUsers called with', usersArray.length, 'users');
+          setError(null);
+          
+          // Enhanced debug info
+          const loggedInCount = usersArray.filter(u => u.loginCount > 0).length;
+          const neverLoggedInCount = usersArray.filter(u => !u.loginCount || u.loginCount === 0).length;
+          
+          setDebugInfo(
+            `✓ Successfully loaded ${usersArray.length} users\n` +
+            `  • ${loggedInCount} users have logged in\n` +
+            `  • ${neverLoggedInCount} users have never logged in\n` +
+            `  • ${usersArray.filter(u => u.role === 'Administrator').length} administrators\n` +
+            `  • ${usersArray.filter(u => u.isBlocked).length} blocked users`
+          );
+        }
+      }
+    } catch (error) {
+      console.error('Network error fetching users:', error);
+      if (!isUnmountedRef.current) {
+        setError('Network error. Please check your connection and ensure the server is running.');
+        setDebugInfo(`❌ Network error: ${error.message}`);
+      }
+    } finally {
+      if (!isUnmountedRef.current) {
+        setLoading(false);
+      }
+    }
+  }, []);
+
+  // Fetch users on mount
+  useEffect(() => {
+    fetchUsers();
+
+    return () => {
+      isUnmountedRef.current = true;
+    };
+  }, [fetchUsers]);
+
+  // Monitor users state changes
+  useEffect(() => {
+    console.log('👥 Users state updated:', users.length, 'users');
+    if (users.length > 0) {
+      console.log('👥 Sample users:', users.slice(0, 3));
+    }
+  }, [users]);
+
+  const filteredUsers = React.useMemo(() => {
+    return users.filter(user => {
+      const matchesSearch = user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (user.firstName && user.firstName.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (user.lastName && user.lastName.toLowerCase().includes(searchTerm.toLowerCase()));
+      const matchesRole = filterRole === 'All' || user.role === filterRole;
+      return matchesSearch && matchesRole;
+    });
+  }, [users, searchTerm, filterRole]);
+
+  const sortedUsers = React.useMemo(() => {
+    return [...filteredUsers].sort((a, b) => {
+      if (!sortField) return 0;
+      let aVal = a[sortField];
+      let bVal = b[sortField];
+      if (aVal === null || aVal === undefined) aVal = '';
+      if (bVal === null || bVal === undefined) bVal = '';
+      if (typeof aVal === 'string') aVal = aVal.toLowerCase();
+      if (typeof bVal === 'string') bVal = bVal.toLowerCase();
+      if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
+      if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
+  }, [filteredUsers, sortField, sortDirection]);
+
+  const stats = React.useMemo(() => {
+    console.log('📊 Calculating stats for', users.length, 'users');
+    const stats = {
+      totalUsers: users.length,
+      activeUsers: users.filter(u => !u.isBlocked).length,
+      blockedUsers: users.filter(user => user.isBlocked).length,
+      administrators: users.filter(u => u.role === 'Administrator').length,
+      loggedInUsers: users.filter(u => u.loginCount > 0).length,
+      neverLoggedIn: users.filter(u => !u.loginCount || u.loginCount === 0).length
+    };
+    console.log('📊 Stats calculated:', stats);
+    return stats;
+  }, [users]);
+
+  const handleSort = useCallback((field) => {
+    setSortField(prevField => {
+      if (prevField === field) {
+        setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+        return field;
+      } else {
+        setSortDirection('asc');
+        return field;
+      }
+    });
+  }, []);
+
+  const startEdit = useCallback((user) => {
+    if (user.id !== currentUser.id) {
+      setError('You can only edit your own information');
+      setTimeout(() => setError(null), 3000);
+      return;
+    }
+    setEditingUserId(user.id);
+    setFormData({
+      username: user.username,
+      email: user.email,
+      firstName: user.firstName || '',
+      lastName: user.lastName || '',
+      phone: user.phone || '',
+      address: user.address || '',
+      role: user.role,
+      isBlocked: user.isBlocked,
+      createdAt: user.createdAt,
+      lastLogin: user.lastLogin,
+      loginCount: user.loginCount || 0
+    });
+  }, [currentUser]);
+
+  const cancelEdit = useCallback(() => {
+    setEditingUserId(null);
+    setFormData({
+      username: '',
+      email: '',
+      firstName: '',
+      lastName: '',
+      phone: '',
+      address: '',
+      role: 'User',
+    });
+  }, []);
+
+  const startChangePassword = useCallback((user) => {
+    if (user.id !== currentUser.id) {
+      setError('You can only change your own password');
+      setTimeout(() => setError(null), 3000);
+      return;
+    }
+    setChangingPasswordUserId(user.id);
+    setNewPassword('');
+    setCurrentPassword('');
+  }, [currentUser]);
+
+  const cancelChangePassword = useCallback(() => {
+    setChangingPasswordUserId(null);
+    setNewPassword('');
+    setCurrentPassword('');
+  }, []);
+
+  const saveChangePassword = async () => {
+    if (newPassword.length < 6) {
+      setError('Password must be at least 6 characters long');
+      setTimeout(() => setError(null), 3000);
+      return;
+    }
+
+    if (!currentPassword) {
+      setError('Please enter your current password');
+      setTimeout(() => setError(null), 3000);
+      return;
+    }
+
+    const personalInfo = [currentUser.username, currentUser.email, currentUser.firstName, currentUser.lastName].filter(Boolean);
+    const containsPersonalInfo = personalInfo.some(info =>
+      newPassword.toLowerCase().includes(info.toLowerCase())
+    );
+
+    if (containsPersonalInfo) {
+      setError('Password should not contain personal information');
+      setTimeout(() => setError(null), 3000);
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`http://localhost:5000/api/users/change-password`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ currentPassword, newPassword })
+      });
+
+      if (response.ok) {
+        setSuccessMessage('Password changed successfully');
+        setTimeout(() => setSuccessMessage(null), 3000);
+        cancelChangePassword();
+        await fetchUsers();
+      } else {
+        const error = await response.json();
+        setError(error.message || 'Failed to change password');
+        setTimeout(() => setError(null), 3000);
+      }
+    } catch (error) {
+      console.error('Change password error:', error);
+      setError('Network error. Please try again.');
+      setTimeout(() => setError(null), 3000);
+    }
+  };
+
+  const saveEdit = async () => {
+    if (!formData.username || !formData.email) {
+      setError('Please fill in required fields: Username, Email');
+      setTimeout(() => setError(null), 3000);
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email)) {
+      setError('Please enter a valid email address');
+      setTimeout(() => setError(null), 3000);
+      return;
+    }
+
+    const phoneRegex = /^09\d{9}$/;
+    if (formData.phone && !phoneRegex.test(formData.phone)) {
+      setError('Phone number must be in Philippine format (starts with 09, exactly 11 digits)');
+      setTimeout(() => setError(null), 3000);
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`http://localhost:5000/api/users/profile`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          username: formData.username,
+          email: formData.email,
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          phone: formData.phone,
+          address: formData.address
+        })
+      });
+
+      if (response.ok) {
+        setSuccessMessage('Profile updated successfully');
+        setTimeout(() => setSuccessMessage(null), 3000);
+        await fetchUsers();
+        cancelEdit();
+      } else {
+        const error = await response.json();
+        setError(error.message || 'Failed to update profile');
+        setTimeout(() => setError(null), 3000);
+      }
+    } catch (error) {
+      console.error('Update profile error:', error);
+      setError('Network error. Please try again.');
+      setTimeout(() => setError(null), 3000);
+    }
+  };
+
+  const hideUser = async (id) => {
+    const user = users.find(u => u.id === id);
+    if (!user) return;
+
+    if (user.role === 'Administrator') {
+      setError('Cannot hide administrator accounts');
+      setTimeout(() => setError(null), 3000);
+      return;
+    }
+
+    if (window.confirm('Are you sure you want to hide this user? This action will remove them from the user list.')) {
+      try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`http://localhost:5000/api/users/${id}/hide`, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (response.ok) {
+          setSuccessMessage('User hidden successfully');
+          setTimeout(() => setSuccessMessage(null), 3000);
+          await fetchUsers();
+        } else {
+          const error = await response.json();
+          setError(error.message || 'Failed to hide user');
+          setTimeout(() => setError(null), 3000);
+        }
+      } catch (error) {
+        console.error('Hide user error:', error);
+        setError('Network error. Please try again.');
+        setTimeout(() => setError(null), 3000);
+      }
+    }
+  };
+
+  const toggleBlock = async (id) => {
+    const user = users.find(u => u.id === id);
+    if (!user) return;
+
+    if (user.role === 'Administrator') {
+      setError('Cannot block administrator accounts');
+      setTimeout(() => setError(null), 3000);
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      const action = user.isBlocked ? 'unblock' : 'block';
+      const response = await fetch(`http://localhost:5000/api/users/${id}/${action}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        setSuccessMessage(`User ${action}ed successfully`);
+        setTimeout(() => setSuccessMessage(null), 3000);
+        await fetchUsers();
+      } else {
+        const error = await response.json();
+        setError(error.message || `Failed to ${action} user`);
+        setTimeout(() => setError(null), 3000);
+      }
+    } catch (error) {
+      console.error('Toggle block error:', error);
+      setError('Network error. Please try again.');
+      setTimeout(() => setError(null), 3000);
+    }
+  };
+
+  const handleRefresh = useCallback(() => {
+    fetchUsers();
+  }, [fetchUsers]);
+
+  return (
+    <div className="min-h-screen bg-gray-50 p-6">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-semibold">User Management</h1>
+        <button
+          onClick={handleRefresh}
+          disabled={loading}
+          className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded flex items-center gap-2 disabled:opacity-50 transition-colors"
+        >
+          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+          Refresh
+        </button>
+      </div>
+
+      {error && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+          <strong>Error:</strong> {error}
+        </div>
+      )}
+
+      {successMessage && (
+        <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
+          <strong>Success:</strong> {successMessage}
+        </div>
+      )}
+
+      {loading && (
+        <div className="bg-blue-100 border border-blue-400 text-blue-700 px-4 py-3 rounded mb-4">
+          Loading users...
+        </div>
+      )}
+
+      {debugInfo && (
+        <div className="bg-gray-100 border border-gray-300 text-gray-700 px-4 py-3 rounded mb-4 font-mono text-sm whitespace-pre-line">
+          <strong>Debug Info:</strong>
+          {'\n'}{debugInfo}
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-6 gap-4 mb-6">
+        <div className="bg-white p-4 rounded shadow">
+          <p className="text-sm text-gray-600">Total Users</p>
+          <p className="text-xl font-bold">{stats.totalUsers}</p>
+        </div>
+        <div className="bg-white p-4 rounded shadow">
+          <p className="text-sm text-gray-600">Logged-in Users</p>
+          <p className="text-xl font-bold text-green-600">{stats.loggedInUsers}</p>
+        </div>
+        <div className="bg-white p-4 rounded shadow">
+          <p className="text-sm text-gray-600">Never Logged In</p>
+          <p className="text-xl font-bold text-orange-600">{stats.neverLoggedIn}</p>
+        </div>
+        <div className="bg-white p-4 rounded shadow">
+          <p className="text-sm text-gray-600">Active Users</p>
+          <p className="text-xl font-bold">{stats.activeUsers}</p>
+        </div>
+        <div className="bg-white p-4 rounded shadow">
+          <p className="text-sm text-gray-600">Blocked Users</p>
+          <p className="text-xl font-bold text-red-600">{stats.blockedUsers}</p>
+        </div>
+        <div className="bg-white p-4 rounded shadow">
+          <p className="text-sm text-gray-600">Administrators</p>
+          <p className="text-xl font-bold text-purple-600">{stats.administrators}</p>
+        </div>
+      </div>
+
+      {currentUser && (
+        <div className="bg-white rounded-lg shadow-sm border p-6 mb-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Your Account Information</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Username</p>
+              <p className="text-lg text-gray-900">{currentUser.username}</p>
+            </div>
+            <div>
+              <p className="text-sm font-medium text-gray-600">Email</p>
+              <p className="text-lg text-gray-900">{currentUser.email}</p>
+            </div>
+            <div>
+              <p className="text-sm font-medium text-gray-600">Full Name</p>
+              <p className="text-lg text-gray-900">{currentUser.firstName || 'N/A'} {currentUser.lastName || ''}</p>
+            </div>
+            <div>
+              <p className="text-sm font-medium text-gray-600">Role</p>
+              <p className="text-lg text-gray-900">{currentUser.role}</p>
+            </div>
+            <div>
+              <p className="text-sm font-medium text-gray-600">Member Since</p>
+              <p className="text-lg text-gray-900">{currentUser.createdAt || 'N/A'}</p>
+            </div>
+            <div>
+              <p className="text-sm font-medium text-gray-600">Last Login</p>
+              <p className="text-lg text-gray-900">{currentUser.lastLogin || 'Never'}</p>
+            </div>
+            <div>
+              <p className="text-sm font-medium text-gray-600">Successful Logins</p>
+              <p className="text-lg text-gray-900">{currentUser.loginCount || 0}</p>
+            </div>
+            <div>
+              <p className="text-sm font-medium text-gray-600">Total Login Attempts</p>
+              <p className="text-lg text-gray-900">{currentUser.totalLoginAttempts || 0}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4 gap-4">
+        <div className="flex items-center gap-2">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+            <input
+              type="text"
+              placeholder="Search by username, email, or name"
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+              className="border border-gray-300 rounded pl-10 pr-3 py-2 w-64 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <select
+            value={filterRole}
+            onChange={e => setFilterRole(e.target.value)}
+            className="border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            {roles.map(role => (
+              <option key={role} value={role}>{role}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      <div className="overflow-x-auto bg-white rounded shadow">
+        <table className="min-w-full divide-y divide-gray-200 table-fixed">
+          <thead className="bg-gray-100">
+            <tr>
+              <th
+                onClick={() => handleSort('username')}
+                className="w-24 px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer select-none hover:bg-gray-200 transition-colors"
+              >
+                <div className="flex items-center gap-1">
+                  Username
+                  {sortField === 'username' && (
+                    sortDirection === 'asc' ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />
+                  )}
+                </div>
+              </th>
+              <th
+                onClick={() => handleSort('email')}
+                className="w-32 px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer select-none hover:bg-gray-200 transition-colors"
+              >
+                <div className="flex items-center gap-1">
+                  Email
+                  {sortField === 'email' && (
+                    sortDirection === 'asc' ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />
+                  )}
+                </div>
+              </th>
+              <th
+                onClick={() => handleSort('role')}
+                className="w-20 px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer select-none hover:bg-gray-200 transition-colors"
+              >
+                <div className="flex items-center gap-1">
+                  Role
+                  {sortField === 'role' && (
+                    sortDirection === 'asc' ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />
+                  )}
+                </div>
+              </th>
+              <th
+                onClick={() => handleSort('isBlocked')}
+                className="w-16 px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer select-none hover:bg-gray-200 transition-colors"
+              >
+                <div className="flex items-center gap-1">
+                  Status
+                  {sortField === 'isBlocked' && (
+                    sortDirection === 'asc' ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />
+                  )}
+                </div>
+              </th>
+              <th
+                onClick={() => handleSort('loginCount')}
+                className="w-20 px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer select-none hover:bg-gray-200 transition-colors"
+              >
+                <div className="flex items-center gap-1">
+                  Success
+                  {sortField === 'loginCount' && (
+                    sortDirection === 'asc' ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />
+                  )}
+                </div>
+              </th>
+              <th
+                onClick={() => handleSort('totalLoginAttempts')}
+                className="w-20 px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer select-none hover:bg-gray-200 transition-colors"
+              >
+                <div className="flex items-center gap-1">
+                  Total
+                  {sortField === 'totalLoginAttempts' && (
+                    sortDirection === 'asc' ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />
+                  )}
+                </div>
+              </th>
+              <th
+                onClick={() => handleSort('lastLogin')}
+                className="w-28 px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer select-none hover:bg-gray-200 transition-colors"
+              >
+                <div className="flex items-center gap-1">
+                  Last Login
+                  {sortField === 'lastLogin' && (
+                    sortDirection === 'asc' ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />
+                  )}
+                </div>
+              </th>
+              <th className="w-48 px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-200">
+            {sortedUsers.length === 0 && !loading ? (
+              <tr>
+                <td colSpan="8" className="text-center py-8 text-gray-500">
+                  {users.length === 0 ? 'No users found. Please check if users are registered in the database.' : 'No users found matching your criteria.'}
+                </td>
+              </tr>
+            ) : (
+              sortedUsers.map(user => {
+                const loginCount = typeof user.loginCount === 'number' ? user.loginCount : 0;
+                const totalAttempts = typeof user.totalLoginAttempts === 'number' ? user.totalLoginAttempts : 0;
+                const hasLoggedIn = loginCount > 0;
+                
+                return (
+                  <tr key={user.id} className={`${editingUserId === user.id || changingPasswordUserId === user.id ? 'bg-yellow-50' : hasLoggedIn ? 'hover:bg-green-50' : 'hover:bg-orange-50'} transition-colors`}>
+                    {editingUserId === user.id ? (
+                      <>
+                        <td className="px-3 py-2">
+                          <input
+                            type="text"
+                            value={formData.username}
+                            onChange={e => setFormData({ ...formData, username: e.target.value })}
+                            className="w-full border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            required
+                          />
+                        </td>
+                        <td className="px-3 py-2">
+                          <input
+                            type="email"
+                            value={formData.email}
+                            onChange={e => setFormData({ ...formData, email: e.target.value })}
+                            className="w-full border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            required
+                          />
+                        </td>
+                        <td className="px-3 py-2">
+                          <select
+                            value={formData.role}
+                            onChange={e => setFormData({ ...formData, role: e.target.value })}
+                            className="w-full border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            disabled
+                          >
+                            {roles.filter(r => r !== 'All').map(role => (
+                              <option key={role} value={role}>{role}</option>
+                            ))}
+                          </select>
+                        </td>
+                        <td className="px-3 py-2">
+                          <span className={`px-2 py-1 rounded text-xs ${formData.isBlocked ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}`}>
+                            {formData.isBlocked ? 'Blocked' : 'Active'}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2 text-sm">{loginCount}</td>
+                        <td className="px-3 py-2 text-sm">{totalAttempts}</td>
+                        <td className="px-3 py-2 text-sm">{formData.lastLogin || 'Never'}</td>
+                        <td className="px-3 py-2">
+                          <div className="flex gap-1">
+                            <button
+                              onClick={saveEdit}
+                              className="bg-green-500 hover:bg-green-600 text-white px-2 py-1 rounded flex items-center gap-1 text-xs transition-colors"
+                            >
+                              <Save className="w-3 h-3" />
+                              Save
+                            </button>
+                            <button
+                              onClick={cancelEdit}
+                              className="bg-gray-500 hover:bg-gray-600 text-white px-2 py-1 rounded flex items-center gap-1 text-xs transition-colors"
+                            >
+                              <X className="w-3 h-3" />
+                              Cancel
+                            </button>
+                          </div>
+                        </td>
+                      </>
+                    ) : changingPasswordUserId === user.id ? (
+                      <>
+                        <td className="px-3 py-2" colSpan="8">
+                          <div className="flex items-center gap-4 flex-wrap">
+                            <span className="font-medium text-sm whitespace-nowrap">Change Password for {user.username}:</span>
+                            <input
+                              type="password"
+                              value={currentPassword}
+                              onChange={e => setCurrentPassword(e.target.value)}
+                              placeholder="Current password"
+                              className="border border-gray-300 rounded px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              minLength="6"
+                            />
+                            <input
+                              type="password"
+                              value={newPassword}
+                              onChange={e => setNewPassword(e.target.value)}
+                              placeholder="New password (min 6 characters)"
+                              className="border border-gray-300 rounded px-3 py-1 flex-1 min-w-48 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              minLength="6"
+                            />
+                            <button
+                              onClick={saveChangePassword}
+                              className="bg-green-500 hover:bg-green-600 text-white px-2 py-1 rounded flex items-center gap-1 text-xs transition-colors whitespace-nowrap"
+                            >
+                              <Save className="w-3 h-3" />
+                              Save Password
+                            </button>
+                            <button
+                              onClick={cancelChangePassword}
+                              className="bg-gray-500 hover:bg-gray-600 text-white px-2 py-1 rounded flex items-center gap-1 text-xs transition-colors"
+                            >
+                              <X className="w-3 h-3" />
+                              Cancel
+                            </button>
+                          </div>
+                        </td>
+                      </>
+                    ) : (
+                      <>
+                        <td className="px-3 py-2">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium">{user.username}</span>
+                            {!hasLoggedIn && (
+                              <span className="text-xs bg-orange-100 text-orange-800 px-2 py-0.5 rounded" title="This user has never logged in">
+                                New
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-3 py-2 text-sm">{user.email}</td>
+                        <td className="px-3 py-2">
+                          <span className={`px-2 py-1 rounded text-xs font-medium ${user.role === 'Administrator' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'}`}>
+                            {user.role}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2">
+                          <span className={`px-2 py-1 rounded text-xs font-medium ${user.isBlocked ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}`}>
+                            {user.isBlocked ? 'Blocked' : 'Active'}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2">
+                          <span className={`text-sm font-medium ${hasLoggedIn ? 'text-green-600' : 'text-gray-400'}`}>
+                            {loginCount}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2 text-sm font-medium">{totalAttempts}</td>
+                        <td className="px-3 py-2">
+                          <span className={`text-sm ${user.lastLogin ? 'text-gray-900' : 'text-gray-400 italic'}`}>
+                            {user.lastLogin || 'Never'}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2">
+                          <div className="flex gap-1 flex-wrap">
+                            {user.id === currentUser?.id && (
+                              <>
+                                <button
+                                  onClick={() => startEdit(user)}
+                                  className="bg-yellow-400 hover:bg-yellow-500 text-white px-2 py-1 rounded flex items-center gap-1 text-xs mb-1 transition-colors"
+                                  title="Edit User"
+                                >
+                                  <Edit2 className="w-3 h-3" />
+                                  Edit
+                                </button>
+                                <button
+                                  onClick={() => startChangePassword(user)}
+                                  className="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded flex items-center gap-1 text-xs mb-1 transition-colors"
+                                  title="Change Password"
+                                >
+                                  <Key className="w-3 h-3" />
+                                  Password
+                                </button>
+                              </>
+                            )}
+                            {currentUser?.role === 'Administrator' && user.role !== 'Administrator' && user.id !== currentUser.id && (
+                              <>
+                                <button
+                                  onClick={() => toggleBlock(user.id)}
+                                  className={`${user.isBlocked ? 'bg-green-500 hover:bg-green-600' : 'bg-red-500 hover:bg-red-600'} text-white px-2 py-1 rounded flex items-center gap-1 text-xs mb-1 transition-colors`}
+                                  title={user.isBlocked ? 'Unblock User' : 'Block User'}
+                                >
+                                  {user.isBlocked ? <UserCheck className="w-3 h-3" /> : <UserX className="w-3 h-3" />}
+                                  {user.isBlocked ? 'Unblock' : 'Block'}
+                                </button>
+                                <button
+                                  onClick={() => hideUser(user.id)}
+                                  className="bg-orange-500 hover:bg-orange-600 text-white px-2 py-1 rounded flex items-center gap-1 text-xs mb-1 transition-colors"
+                                  title="Hide User"
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                  Hide
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </td>
+                      </>
+                    )}
+                  </tr>
+                );
+              })
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+export default UserManagement;

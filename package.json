@@ -1,0 +1,31 @@
+{
+<<<<<<< HEAD
+  "dependencies": {
+    "bcrypt": "^6.0.0",
+    "lucide-react": "^0.553.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+=======
+  "name": "joy-water-station-root",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "start": "cd joy-water-station/joy-water-station/joy-water-station && npm start"
+  },
+  "dependencies": {
+    "mysql2": "^3.15.0"
+>>>>>>> 44e033e (Initial commit of Joy-Purified-Drinking-Water-Station)
+  }
+}
